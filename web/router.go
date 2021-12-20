@@ -94,14 +94,14 @@ func (rg *RouterGroup) ALL(prefix string, controller interface{}) *RouterGroup {
 	return rg
 }
 
-func (group *RouterGroup) GET(prefix string, handler func(c *Context)) {
+func (group *RouterGroup) GET(prefix string, handler HandlerFunc) {
 
 	group.router = append(group.router, &Router{
 		Path:    prefix,
 		method:  nil,
 		group:   group,
 		object:  nil,
-		handler: (HandlerFunc)(handler),
+		handler: handler,
 	})
 }
 
