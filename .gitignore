@@ -1,0 +1,14 @@
+*.iml
+*.ipr
+*.iws
+.idea/
+logs/
+go.sum
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main
+adscreen
+__debug_bin

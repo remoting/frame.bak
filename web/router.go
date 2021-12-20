@@ -63,34 +63,65 @@ func (group *RouterGroup) Group(prefix string, groups ...func(group *RouterGroup
 }
 
 func (rg *RouterGroup) ALL(prefix string, controller interface{}) *RouterGroup {
-	rg.Group(prefix, func(group *RouterGroup) {
-		t := reflect.TypeOf(controller)
-		fmt.Println(t.Kind())
-		if t.Kind() == reflect.Ptr {
-			//指针
-			fmt.Println(t.Elem().Name())
-			fmt.Println(t.Elem().Kind())
-			fmt.Println(t.Elem().PkgPath())
-		} else {
-			//结构体
-			fmt.Println(t.Name())
-			fmt.Println(t.Kind())
-			fmt.Println(t.PkgPath())
-		}
+	t := reflect.TypeOf(controller)
+	kind := t.Kind()
+	if kind == reflect.Func {
+		// 函数
+		switch v := controller.(type) {
 
-		for i := 0; i < t.NumMethod(); i++ {
-			m := t.Method(i)
-			if m.Type.NumIn() == 2 && m.Type.In(1).String() == "*web.Context" {
-				group.router = append(group.router, &Router{
-					Path:   m.Name,
-					group:  group,
-					object: controller,
-					otype:  t,
-					method: &m,
-				})
-			}
+		case int:
+			fmt.Println("int:", v)
+
+		case string:
+			fmt.Println("string:", v)
+		case func(*Context):
+			fmt.Println("string:", v)
+		default:
+			fmt.Println("unknown type:", v)
 		}
-	})
+		rg.router = append(rg.router, &Router{
+			Path:    prefix,
+			method:  nil,
+			group:   rg,
+			object:  nil,
+			handler: controller.(HandlerFunc),
+		})
+	}
+	if kind == reflect.Struct {
+
+	}
+	if kind == reflect.Ptr {
+		// 结构体指针
+		rg.Group(prefix, func(group *RouterGroup) {
+			fmt.Println(t.Kind())
+			if t.Kind() == reflect.Ptr {
+				//指针
+				fmt.Println(t.Elem().Name())
+				fmt.Println(t.Elem().Kind())
+				fmt.Println(t.Elem().PkgPath())
+			} else {
+				//结构体
+				fmt.Println(t.Name())
+				fmt.Println(t.Kind())
+				fmt.Println(t.PkgPath())
+			}
+
+			for i := 0; i < t.NumMethod(); i++ {
+				m := t.Method(i)
+
+				fmt.Println(m.Type.In(1) == reflect.TypeOf(&Context{}))
+				if m.Type.NumIn() == 2 && m.Type.In(1).String() == "*web.Context" {
+					group.router = append(group.router, &Router{
+						Path:   m.Name,
+						group:  group,
+						object: controller,
+						otype:  t,
+						method: &m,
+					})
+				}
+			}
+		})
+	}
 	return rg
 }
 
@@ -136,6 +167,7 @@ func (group *RouterGroup) handleHTTPRequest(w http.ResponseWriter, req *http.Req
 			if v.method == nil {
 				v.handler(c)
 			} else {
+				fmt.Println(reflect.ValueOf(c).Type())
 				params := []reflect.Value{reflect.ValueOf(v.object), reflect.ValueOf(c)}
 				v.method.Func.Call(params)
 			}

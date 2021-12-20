@@ -22,6 +22,12 @@ func main() {
 		group.GET("/xxx", func(c *web.Context) {
 			io.WriteString(c.Response, "xxx"+c.Request.URL.String())
 		})
+		group.ALL("/test", func(c *web.Context) {
+			io.WriteString(c.Response, "test"+c.Request.URL.String())
+		})
+		group.ALL("/test", func(c *web.Context) {
+			io.WriteString(c.Response, "test"+c.Request.URL.String())
+		})
 	})
 	r.Run(":8080")
 }
