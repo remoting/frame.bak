@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 type RouterGroup struct {
@@ -17,22 +18,31 @@ type RouterGroup struct {
 type Router struct {
 	group   *RouterGroup
 	Path    string
-	method  *reflect.Method
-	object  interface{}
+	Method  string
 	handler HandlerFunc
-	otype   reflect.Type
 }
 
+func (router *Router) GetFullPath() string {
+	path := router.group.GetPrefix()
+	if strings.HasPrefix(router.Path, "/") {
+		path = path + router.Path
+	} else {
+		path = path + "/" + router.Path
+	}
+	return path
+}
+func proxyHandlerFunc(method reflect.Method, object interface{}) HandlerFunc {
+	return func(c *Context) {
+		params := []reflect.Value{reflect.ValueOf(object), reflect.ValueOf(c)}
+		method.Func.Call(params)
+	}
+}
 func (group *RouterGroup) print() {
 	for _, v := range group.children {
 		v.print()
 	}
 	for _, v := range group.router {
-		if v.method != nil {
-			fmt.Printf("%s,%v\n", group.GetPrefix()+"/"+v.Path, v.method.Type)
-		} else {
-			fmt.Printf("%s,%v\n", group.GetPrefix()+v.Path, v.handler)
-		}
+		fmt.Printf("%s,%s,%v\n", v.GetFullPath(), v.Method, v.handler)
 	}
 }
 func (group *RouterGroup) GetPrefix() string {
@@ -62,80 +72,58 @@ func (group *RouterGroup) Group(prefix string, groups ...func(group *RouterGroup
 	return child
 }
 
-func (rg *RouterGroup) ALL(prefix string, controller interface{}) *RouterGroup {
+//获取指针的原始结构体类型
+func ttt(t reflect.Type) {
+	tt := t
+	for tt.Kind() == reflect.Ptr || tt.Kind() == reflect.Slice {
+		tt = tt.Elem()
+	}
+}
+func (group *RouterGroup) ALL(prefix string, controller interface{}) *RouterGroup {
 	t := reflect.TypeOf(controller)
 	kind := t.Kind()
 	if kind == reflect.Func {
-		// 函数
 		switch v := controller.(type) {
-
-		case int:
-			fmt.Println("int:", v)
-
-		case string:
-			fmt.Println("string:", v)
+		case HandlerFunc:
+			group.addRouter(prefix, "*", controller.(HandlerFunc))
 		case func(*Context):
-			fmt.Println("string:", v)
+			group.addRouter(prefix, "*", controller.(func(ctx *Context)))
 		default:
-			fmt.Println("unknown type:", v)
+			fmt.Printf("函数不符合约定:%v", v)
 		}
-		rg.router = append(rg.router, &Router{
-			Path:    prefix,
-			method:  nil,
-			group:   rg,
-			object:  nil,
-			handler: controller.(HandlerFunc),
-		})
 	}
 	if kind == reflect.Struct {
 
 	}
 	if kind == reflect.Ptr {
 		// 结构体指针
-		rg.Group(prefix, func(group *RouterGroup) {
-			fmt.Println(t.Kind())
-			if t.Kind() == reflect.Ptr {
-				//指针
-				fmt.Println(t.Elem().Name())
-				fmt.Println(t.Elem().Kind())
-				fmt.Println(t.Elem().PkgPath())
-			} else {
-				//结构体
-				fmt.Println(t.Name())
-				fmt.Println(t.Kind())
-				fmt.Println(t.PkgPath())
-			}
-
+		group.Group(prefix, func(g *RouterGroup) {
 			for i := 0; i < t.NumMethod(); i++ {
 				m := t.Method(i)
-
-				fmt.Println(m.Type.In(1) == reflect.TypeOf(&Context{}))
-				if m.Type.NumIn() == 2 && m.Type.In(1).String() == "*web.Context" {
-					group.router = append(group.router, &Router{
-						Path:   m.Name,
-						group:  group,
-						object: controller,
-						otype:  t,
-						method: &m,
-					})
+				// 判断是否为控制器方法
+				if m.Type.NumIn() == 2 && m.Type.In(1) == reflect.TypeOf(&Context{}) {
+					g.addRouter(m.Name, "*", proxyHandlerFunc(m, controller))
 				}
 			}
 		})
 	}
-	return rg
+	return group
 }
-
-func (group *RouterGroup) GET(prefix string, handler HandlerFunc) {
-
+func (group *RouterGroup) addRouter(path, method string, handler HandlerFunc) {
 	group.router = append(group.router, &Router{
-		Path:    prefix,
-		method:  nil,
+		Path:    path,
+		Method:  method,
 		group:   group,
-		object:  nil,
 		handler: handler,
 	})
 }
+func (group *RouterGroup) GET(path string, handler HandlerFunc) {
+	group.addRouter(path, "GET", handler)
+}
 
+func (group *RouterGroup) POST(path string, handler HandlerFunc) {
+	group.addRouter(path, "POST", handler)
+}
 func (engine *RouterGroup) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	isMatch := false
 	path := req.URL.Path
@@ -157,20 +145,11 @@ func (group *RouterGroup) handleHTTPRequest(w http.ResponseWriter, req *http.Req
 		Response: w,
 	}
 	for _, v := range group.router {
-		//fmt.Printf("%s,%s,%s", v.group.GetPrefix(), v.Path, req.URL.Path)
-		pattern := v.group.GetPrefix() + "/" + v.Path
-		if v.method == nil {
-			pattern = v.group.GetPrefix() + v.Path
-		}
-		if pattern == req.URL.Path {
+		pattern := v.GetFullPath()
+		if pattern == req.URL.Path && (v.Method == "*" || v.Method == req.Method) {
 			c.Router = v
-			if v.method == nil {
-				v.handler(c)
-			} else {
-				fmt.Println(reflect.ValueOf(c).Type())
-				params := []reflect.Value{reflect.ValueOf(v.object), reflect.ValueOf(c)}
-				v.method.Func.Call(params)
-			}
+			v.handler(c)
+			break
 		}
 	}
 }
