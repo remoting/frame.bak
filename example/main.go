@@ -1,9 +1,8 @@
 package main
 
 import (
-	"io"
-
 	"github.com/remoting/frame/web"
+	"io"
 )
 
 type Demo struct {
@@ -20,6 +19,10 @@ func xxx(h web.HandlerFunc, g *web.RouterGroup) {
 }
 func main() {
 	r := web.New()
+	g := r.Group("/abc")
+	g.GET("/xxx", func(c *web.Context) {
+		io.WriteString(c.Response, "xxx"+c.Request.URL.String())
+	})
 	r.Group("/api", func(group *web.RouterGroup) {
 
 		group.ALL("/service", &Demo{})
