@@ -4,12 +4,6 @@ import "net/http"
 
 type HandlerFunc func(*Context)
 
-type Context struct {
-	Request  *http.Request
-	Response http.ResponseWriter
-	Router   *Router
-}
-
 type Engine struct {
 	RouterGroup
 }
