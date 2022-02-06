@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -10,6 +11,11 @@ var (
 )
 
 type H map[string]interface{}
+type S struct {
+	Code    int         `json:"code"`
+	Message string      `json:"msg"`
+	Data    interface{} `json:"data"`
+}
 type Context struct {
 	Request  *http.Request
 	Response http.ResponseWriter
@@ -36,4 +42,36 @@ func (c *Context) JSON(code int, data interface{}) (err error) {
 	}
 	_, err = c.Response.Write(jsonBytes)
 	return err
+}
+
+func (c *Context) Data(data S) (err error) {
+	c.Status(200)
+	writeContentType(c.Response, jsonContentType)
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	_, err = c.Response.Write(jsonBytes)
+	return err
+}
+
+func (c *Context) BindBody(obj interface{}) (err error) {
+	body, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		return err
+	}
+	return bindBody(body, obj)
+}
+
+func (c *Context) GetBody() (interface{}, error) {
+	var obj interface{}
+	body, err1 := ioutil.ReadAll(c.Request.Body)
+	if err1 != nil {
+		return nil, err1
+	}
+	err2 := bindBody(body, &obj)
+	if err2 != nil {
+		return nil, err2
+	}
+	return obj, nil
 }
