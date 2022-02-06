@@ -11,5 +11,7 @@ func TryCatch(try func(), catch ...func(exception error)) {
 	try()
 }
 func Throw(exception interface{}) {
-	panic(exception)
+	if exception != nil {
+		panic(exception)
+	}
 }

@@ -75,3 +75,17 @@ func (c *Context) GetBody() (interface{}, error) {
 	}
 	return obj, nil
 }
+func (c *Context) Query(key string) string {
+	value, _ := c.GetQuery(key)
+	return value
+}
+func (c *Context) GetQuery(key string) (string, bool) {
+	if values, ok := c.GetQueryArray(key); ok {
+		return values[0], ok
+	}
+	return "", false
+}
+func (c *Context) GetQueryArray(key string) (values []string, ok bool) {
+	values, ok = c.Request.URL.Query()[key]
+	return
+}
