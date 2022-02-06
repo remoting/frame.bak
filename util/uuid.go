@@ -9,7 +9,7 @@ import (
 
 var rander = rand.Reader
 
-func New() string {
+func NewUUID() string {
 	b58 := NewBitcoinBase58()
 	i := time.Now().Unix()
 	b := Int64ToBytes(i)
