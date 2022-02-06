@@ -7,6 +7,6 @@ import (
 
 func TestUUID001(t *testing.T) {
 
-	fmt.Printf("%s\n ", New())
+	fmt.Printf("%s\n ", NewUUID())
 
 }
