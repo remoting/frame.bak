@@ -1,8 +1,9 @@
-package util
+package uuid
 
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"github.com/remoting/frame/encoding/base58"
 	"io"
 	"time"
 )
@@ -10,7 +11,7 @@ import (
 var rander = rand.Reader
 
 func NewUUID() string {
-	b58 := NewBitcoinBase58()
+	b58 := base58.NewBitcoinBase58()
 	i := time.Now().Unix()
 	b := Int64ToBytes(i)
 	ss, _ := b58.EncodeToString(b)
